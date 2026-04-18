@@ -1,0 +1,37 @@
+{
+  "provider": "groq",
+  "captured_from_model": "whisper-large-v3-turbo",
+  "input": {
+    "audio_kind": "generated_sine_wav",
+    "duration_seconds": 1.0,
+    "language": "pt-BR",
+    "response_format": "verbose_json"
+  },
+  "response": {
+    "task": "transcribe",
+    "language": "Portuguese",
+    "duration": 1,
+    "text": " .",
+    "segments": [
+      {
+        "id": 0,
+        "seek": 0,
+        "start": 0,
+        "end": 1,
+        "text": " .",
+        "tokens": [
+          50365,
+          2411,
+          50415
+        ],
+        "temperature": 0,
+        "avg_logprob": -0.47113445,
+        "compression_ratio": 0.11111111,
+        "no_speech_prob": 6.055563e-11
+      }
+    ],
+    "x_groq": {
+      "id": "req_01kphasdref1msnbrhg9q8j0c2"
+    }
+  }
+}

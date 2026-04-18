@@ -1,0 +1,4 @@
+{
+  "provider": "groq",
+  "captured_error": "Groq HTTP 403: error code: 1010"
+}

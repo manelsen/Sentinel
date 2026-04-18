@@ -1,0 +1,53 @@
+{
+  "provider": "gemini",
+  "captured_from_model": "gemini-2.5-flash",
+  "input": {
+    "prompt_version": "v1",
+    "window_metadata": {
+      "group_id": "grp_fixture",
+      "window_id": "win_fixture",
+      "start_at": "2026-04-18T16:00:00Z",
+      "end_at": "2026-04-18T16:02:00Z",
+      "message_count": 4,
+      "distinct_user_count": 2,
+      "heuristic_risk_score": 0.72,
+      "heuristic_signals": {
+        "hostility_density_score": 0.68,
+        "dyadic_exchange_score": 0.84,
+        "reply_concentration_score": 0.76,
+        "escalation_velocity_score": 0.71
+      }
+    },
+    "message_count": 4
+  },
+  "response": {
+    "candidates": [
+      {
+        "content": {
+          "parts": [
+            {
+              "text": "{\"conflict_present\":true,\"escalation_risk\":0.85,\"severity\":\"tensao\",\"participants\":[\"Alice\",\"Bruno\"],\"trigger_message_id\":\"msg_fixture_1\",\"evidence\":[{\"message_id\":\"msg_fixture_1\",\"reason\":\"Alice acusa Bruno de distorcer fatos.\"},{\"message_id\":\"msg_fixture_2\",\"reason\":\"Bruno contra-ataca, acusando Alice de n\u00e3o ler.\"},{\"message_id\":\"msg_fixture_3\",\"reason\":\"Alice intensifica o tom, chamando as a\u00e7\u00f5es de Bruno de 'rid\u00edculas' e 'inventar coisa'.\"},{\"message_id\":\"msg_fixture_4\",\"reason\":\"Bruno desafia Alice a provar suas acusa\u00e7\u00f5es, mantendo a hostilidade.\"}],\"summary_short\":\"Discuss\u00e3o acalorada entre Alice e Bruno com acusa\u00e7\u00f5es e contra-acusa\u00e7\u00f5es sobre distor\u00e7\u00e3o de fatos e falta de leitura.\",\"summary_long\":\"Alice inicia a discuss\u00e3o acusando Bruno de distorcer informa\u00e7\u00f5es. Bruno responde com uma contra-acusa\u00e7\u00e3o, afirmando que Alice n\u00e3o l\u00ea antes de responder. A troca se intensifica quando Alice descarta as afirma\u00e7\u00f5es de Bruno como 'rid\u00edculas' e 'inventadas'. Bruno, por sua vez, desafia Alice a apresentar provas, mantendo o ciclo de hostilidade e escalada.\",\"recommended_action\":\"alert_moderator\",\"confidence\":0.95,\"uncertainty_notes\":\"\"}"
+            }
+          ],
+          "role": "model"
+        },
+        "finishReason": "STOP",
+        "index": 0
+      }
+    ],
+    "usageMetadata": {
+      "promptTokenCount": 692,
+      "candidatesTokenCount": 304,
+      "totalTokenCount": 1881,
+      "promptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 692
+        }
+      ],
+      "thoughtsTokenCount": 885
+    },
+    "modelVersion": "gemini-2.5-flash",
+    "responseId": "QQPkabC3INrDvdIP8eLjkQM"
+  }
+}
