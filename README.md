@@ -20,11 +20,41 @@ Base executavel da V1 do Sentinel descrito no PRD: ingestao de mensagens, transc
 
 ## Limites atuais
 
-- O sidecar Baileys faz apenas ingestao. Envio de mensagens de moderacao para WhatsApp ainda nao foi implementado.
+- O sidecar WhatsApp faz apenas ingestao. Envio de mensagens de moderacao para WhatsApp ainda nao foi implementado.
 - Nao ha dashboard web; a saida continua estruturada em SQLite, JSON e `stdout`.
 - O fallback heuristico continua sendo usado quando Groq/Gemini nao estiverem configurados ou responderem com erro.
 
 ## Uso rapido
+
+Fluxo recomendado (padrao): `.env` + `docker compose`.
+
+1. Copie o arquivo de ambiente:
+
+```bash
+cp .env.example .env
+```
+
+2. Ajuste as chaves no `.env`:
+
+- `GROQ_API_KEY`
+- `GEMINI_API_KEY`
+- `SENTINEL_AUTH_TOKEN` (opcional)
+
+O `docker compose` le `.env` automaticamente na raiz do projeto.
+
+3. Suba Sentinel + sidecar:
+
+```bash
+docker compose up --build -d
+```
+
+4. Verifique saude:
+
+```bash
+curl -s http://127.0.0.1:8080/healthz
+```
+
+Fluxo manual (sem docker compose):
 
 Inicializar o banco:
 
@@ -79,12 +109,21 @@ Para audios, informe `message_type = "audio"` e `media_path` apontando para um a
 
 Copie `sentinel.toml` e ajuste pesos, thresholds, host/porta da API e providers.
 
-Variaveis de ambiente esperadas:
+Variaveis de ambiente esperadas (preferencialmente em `.env`):
 
 ```bash
-export GROQ_API_KEY=...
-export GEMINI_API_KEY=...
+cp .env.example .env
+# edite o arquivo .env com suas credenciais e parametros
 ```
+
+O CLI carrega `.env` automaticamente por padrao. Para desativar, use `--no-env-file`.
+
+Overrides por ambiente aceitos no Sentinel:
+
+- `SENTINEL_DB_PATH`
+- `SENTINEL_SERVER_HOST`
+- `SENTINEL_SERVER_PORT`
+- `SENTINEL_AUTH_TOKEN`
 
 ## Sidecar vs bridge
 
@@ -93,7 +132,7 @@ No contexto do Sentinel:
 - `sidecar` e o processo auxiliar que roda ao lado do pipeline principal e fala com o sistema externo.
 - `bridge` e a funcao que esse processo exerce: traduzir eventos externos para o contrato HTTP `POST /ingest`.
 
-Em outras palavras: o `whatsmeow` ou o `Baileys` sao implementacoes de sidecar; a serializacao do evento para o payload JSON do Sentinel e a bridge.
+Em outras palavras: o `whatsmeow` e a implementacao de sidecar; a serializacao do evento para o payload JSON do Sentinel e a bridge.
 
 ## Qualidade
 
@@ -119,39 +158,6 @@ GROQ_API_KEY=... GEMINI_API_KEY=... uv run python scripts/refresh_provider_fixtu
 ```
 
 O script tenta atualizar as fixtures reais de Groq e Gemini. Se um provider falhar, ele grava a fixture de erro correspondente sem quebrar a fixture offline ja existente do caminho feliz.
-
-## Sidecar Baileys
-
-Instalacao:
-
-```bash
-cd sidecar/baileys
-bun install
-```
-
-Execucao:
-
-```bash
-export SENTINEL_INGEST_URL=http://127.0.0.1:8080/ingest
-export SENTINEL_AUTH_TOKEN=
-export SENTINEL_BAILEYS_AUTH_DIR=./.baileys-auth
-export SENTINEL_MEDIA_DIR=./.media
-bun run start
-```
-
-Checagem local do sidecar:
-
-```bash
-bun run check
-```
-
-O sidecar:
-
-- conecta ao WhatsApp Web via `@whiskeysockets/baileys`;
-- consome `messages.upsert`;
-- baixa audio localmente quando houver `audioMessage`;
-- serializa o evento no formato do Sentinel;
-- envia para `POST /ingest`.
 
 ## Sidecar WhatsMeow
 
@@ -248,9 +254,12 @@ O Sentinel V1 e composto por quatro blocos principais:
 │   ├── reports.py          # consolidacao relatorio diario
 │   └── utils.py            # tempo e IDs
 ├── tests/                  # suite unittest
-├── sidecar/                # bridges WhatsApp (Baileys e WhatsMeow)
+├── sidecar/                # bridge WhatsApp (WhatsMeow)
 ├── scripts/                # utilitarios (fixtures providers)
 ├── examples/               # eventos de exemplo
+├── Dockerfile              # imagem do serviço Sentinel
+├── docker-compose.yml      # orquestracao padrao local
+├── .env.example            # variaveis de ambiente de referencia
 ├── sentinel.toml           # configuracao principal
 └── pyproject.toml          # pacote, scripts e ferramentas
 ```
@@ -368,6 +377,11 @@ Comando base:
 ```bash
 PYTHONPATH=src python3 -m sentinel.cli --config sentinel.toml <subcomando>
 ```
+
+Flags globais:
+
+- `--env-file <caminho>` para usar outro arquivo dotenv.
+- `--no-env-file` para nao carregar dotenv.
 
 Subcomandos:
 
@@ -492,29 +506,7 @@ Payload inclui participantes, severidade, resumo, mensagem gatilho e sinais oper
 
 ## Sidecars WhatsApp
 
-Ambos os sidecars enviam payload para o mesmo contrato `POST /ingest`.
-
-### Baileys (Node/Bun)
-
-Principais variaveis:
-
-| Variavel | Default |
-| --- | --- |
-| `SENTINEL_INGEST_URL` | `http://127.0.0.1:8080/ingest` |
-| `SENTINEL_AUTH_TOKEN` | vazio |
-| `SENTINEL_PLATFORM` | `whatsapp` |
-| `SENTINEL_BAILEYS_AUTH_DIR` | `./.baileys-auth` |
-| `SENTINEL_MEDIA_DIR` | `./.media` |
-| `SENTINEL_GROUPS_ONLY` | `true` |
-| `SENTINEL_IGNORE_FROM_ME` | `true` |
-
-Fluxo:
-
-1. conecta no WhatsApp Web;
-2. recebe `messages.upsert`;
-3. salva audio quando houver;
-4. monta payload Sentinel;
-5. faz POST no endpoint de ingestao.
+O sidecar documentado nesta base envia payload para o mesmo contrato `POST /ingest`.
 
 ### WhatsMeow (Go)
 
@@ -546,6 +538,13 @@ Diferenciais:
 
 ```bash
 uv sync --extra dev
+```
+
+### Subir com Docker Compose (padrao)
+
+```bash
+cp .env.example .env
+docker compose up --build -d
 ```
 
 ### Validacoes

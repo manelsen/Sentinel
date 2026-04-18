@@ -19,7 +19,7 @@ Base executavel da V1 do Sentinel descrito no PRD: ingestao de mensagens, transc
 - SQLite com schema auditavel e FTS5.
 - Pipeline local para mensagens de texto e audio.
 - API HTTP simples para sidecars externos.
-- Sidecar Node com Baileys para ingestao real de mensagens de grupo.
+- Sidecar WhatsApp com WhatsMeow para ingestao real de mensagens de grupo.
 - Transcricao nativa via Groq Speech-to-Text.
 - Classificacao estruturada via Gemini JSON Schema.
 - Normalizacao de texto preservando sinais de agressividade.
@@ -32,7 +32,7 @@ Base executavel da V1 do Sentinel descrito no PRD: ingestao de mensagens, transc
 
 ## Limites atuais
 
-- O sidecar Baileys faz apenas ingestao. Envio de mensagens de moderacao para WhatsApp ainda nao foi implementado.
+- O sidecar WhatsApp faz apenas ingestao. Envio de mensagens de moderacao para WhatsApp ainda nao foi implementado.
 - Nao ha dashboard web; a saida continua estruturada em SQLite, JSON e `stdout`.
 - O fallback heuristico continua sendo usado quando Groq/Gemini nao estiverem configurados ou responderem com erro.
 
@@ -98,13 +98,13 @@ export GROQ_API_KEY=...
 export GEMINI_API_KEY=...
 ```
 
-## Sidecar Baileys
+## Sidecar WhatsMeow
 
 Instalacao:
 
 ```bash
-cd sidecar/baileys
-npm install
+cd sidecar/whatsmeow
+go mod tidy
 ```
 
 Execucao:
@@ -112,16 +112,16 @@ Execucao:
 ```bash
 export SENTINEL_INGEST_URL=http://127.0.0.1:8080/ingest
 export SENTINEL_AUTH_TOKEN=
-export SENTINEL_BAILEYS_AUTH_DIR=./.baileys-auth
+export SENTINEL_WHATSMEOW_STORE=./.store/whatsmeow.db
 export SENTINEL_MEDIA_DIR=./.media
-npm start
+go run .
 ```
 
 O sidecar:
 
-- conecta ao WhatsApp Web via `@whiskeysockets/baileys`;
-- consome `messages.upsert`;
-- baixa audio localmente quando houver `audioMessage`;
+- conecta ao WhatsApp via `go.mau.fi/whatsmeow`;
+- consome eventos `*events.Message`;
+- baixa audio localmente quando houver `AudioMessage`;
 - serializa o evento no formato do Sentinel;
 - envia para `POST /ingest`.
 

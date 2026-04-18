@@ -1,0 +1,58 @@
+services:
+  sentinel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sentinel
+    environment:
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      SENTINEL_AUTH_TOKEN: ${SENTINEL_AUTH_TOKEN:-}
+    command:
+      [
+        "serve",
+        "--config",
+        "/app/sentinel.toml",
+        "--db",
+        "/data/sentinel.db",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8080",
+      ]
+    ports:
+      - "${SENTINEL_PORT:-8080}:8080"
+    volumes:
+      - ./sentinel.toml:/app/sentinel.toml:ro
+      - sentinel_data:/data
+    restart: unless-stopped
+
+  whatsmeow-sidecar:
+    image: golang:latest
+    working_dir: /app
+    environment:
+      SENTINEL_INGEST_URL: http://sentinel:8080/ingest
+      SENTINEL_AUTH_TOKEN: ${SENTINEL_AUTH_TOKEN:-}
+      SENTINEL_PLATFORM: ${SENTINEL_PLATFORM:-whatsapp}
+      SENTINEL_GROUPS_ONLY: ${SENTINEL_GROUPS_ONLY:-true}
+      SENTINEL_IGNORE_FROM_ME: ${SENTINEL_IGNORE_FROM_ME:-true}
+      SENTINEL_HTTP_TIMEOUT: ${SENTINEL_HTTP_TIMEOUT:-30s}
+      SENTINEL_RECONNECT_WAIT: ${SENTINEL_RECONNECT_WAIT:-5s}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SENTINEL_WHATSMEOW_STORE: /app/.store/whatsmeow.db
+      SENTINEL_MEDIA_DIR: /app/.media
+    command: ["go", "run", "."]
+    depends_on:
+      - sentinel
+    volumes:
+      - ./sidecar/whatsmeow:/app
+      - whatsmeow_store:/app/.store
+      - whatsmeow_media:/app/.media
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+volumes:
+  sentinel_data:
+  whatsmeow_store:
+  whatsmeow_media:
