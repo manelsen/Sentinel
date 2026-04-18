@@ -1,3 +1,5 @@
+"""Command-line interface for operating Sentinel services and workflows."""
+
 from __future__ import annotations
 
 import argparse
@@ -7,13 +9,21 @@ from pathlib import Path
 
 from .config import load_config
 from .db import connect, init_db
+from .env import load_dotenv
 from .server import run_server
 from .service import SentinelService
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    """Create the top-level argument parser and all supported subcommands.
+
+    Returns:
+        Configured ``ArgumentParser`` instance.
+    """
     parser = argparse.ArgumentParser(prog="sentinel", description="Sentinel de moderacao conversacional.")
     parser.add_argument("--config", default=None, help="Caminho para sentinel.toml")
+    parser.add_argument("--env-file", default=".env", help="Arquivo .env para carregar variaveis de ambiente")
+    parser.add_argument("--no-env-file", action="store_true", help="Nao carregar variaveis a partir de .env")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     init_cmd = subparsers.add_parser("init-db", help="Inicializa o banco SQLite")
@@ -43,8 +53,22 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Execute the Sentinel CLI entrypoint.
+
+    Args:
+        argv: Optional argument vector. When ``None``, uses process arguments.
+
+    Returns:
+        Process exit code.
+    """
     parser = _build_parser()
     args = parser.parse_args(argv)
+    if not args.no_env_file:
+        try:
+            load_dotenv(args.env_file)
+        except (OSError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
     config = load_config(args.config)
     if getattr(args, "db", None):
         config.db_path = args.db

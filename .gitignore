@@ -5,6 +5,7 @@ __pycache__/
 *.db
 *.sqlite
 .venv/
+.env
 .media/
 .baileys-auth/
 sidecar/baileys/node_modules/
