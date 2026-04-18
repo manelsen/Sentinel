@@ -1,0 +1,18 @@
+{
+  "provider": "groq",
+  "case": "missing_text_field",
+  "response": {
+    "task": "transcribe",
+    "language": "pt",
+    "segments": [
+      {
+        "id": 0,
+        "start": 0.0,
+        "end": 2.5,
+        "avg_logprob": -0.8
+      }
+    ]
+  },
+  "expected_status": "failed",
+  "expected_error": "Groq response had no text field"
+}

@@ -1,0 +1,8 @@
+{
+  "provider": "groq",
+  "case": "empty_response_body",
+  "response_body": "",
+  "fallback_language": "pt-BR",
+  "expected_status": "failed",
+  "expected_error": "Groq returned empty response"
+}

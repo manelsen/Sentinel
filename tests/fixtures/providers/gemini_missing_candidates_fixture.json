@@ -1,0 +1,8 @@
+{
+  "provider": "gemini",
+  "case": "missing_candidates",
+  "response": {
+    "candidates": []
+  },
+  "expected_error": "Gemini retornou sem candidates"
+}

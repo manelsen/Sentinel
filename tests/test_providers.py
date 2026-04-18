@@ -15,6 +15,7 @@ from sentinel.prompts import build_prompt
 from sentinel.providers import (
     CLASSIFICATION_RESPONSE_SCHEMA,
     GeminiStructuredClient,
+    ProviderError,
     _extract_gemini_text,
     _normalize_groq_language,
     _parse_groq_transcription_payload,
@@ -152,6 +153,40 @@ class ProviderTests(unittest.TestCase):
         parsed = json.loads(text)
         self.assertIn("severity", parsed)
         self.assertIn(parsed["severity"], {"normal", "atencao", "tensao", "incendio"})
+
+    def test_raises_when_gemini_fixture_has_no_candidates(self) -> None:
+        fixture = _load_fixture("gemini_missing_candidates_fixture.json")
+        response = cast(dict[str, object], fixture["response"])
+        with self.assertRaises(ProviderError) as raised:
+            _extract_gemini_text(response)
+        self.assertEqual(str(raised.exception), fixture["expected_error"])
+
+    def test_raises_when_gemini_fixture_has_no_parts(self) -> None:
+        fixture = _load_fixture("gemini_missing_parts_fixture.json")
+        response = cast(dict[str, object], fixture["response"])
+        with self.assertRaises(ProviderError) as raised:
+            _extract_gemini_text(response)
+        self.assertEqual(str(raised.exception), fixture["expected_error"])
+
+    def test_parses_groq_fixture_missing_text_as_failed(self) -> None:
+        fixture = _load_fixture("groq_transcription_missing_text_fixture.json")
+        parsed = _parse_groq_transcription_payload(
+            cast(dict[str, object], fixture["response"]),
+            fallback_language="pt-BR",
+        )
+        self.assertEqual(parsed.status, fixture["expected_status"])
+        self.assertEqual(parsed.error_message, fixture["expected_error"])
+        self.assertIsNone(parsed.transcript_text)
+
+    def test_parses_groq_empty_response_fixture(self) -> None:
+        fixture = _load_fixture("groq_transcription_empty_response_fixture.json")
+        parsed = _parse_groq_transcription_response(
+            str(fixture["response_body"]),
+            fallback_language=str(fixture["fallback_language"]),
+        )
+        self.assertEqual(parsed.status, fixture["expected_status"])
+        self.assertEqual(parsed.error_message, fixture["expected_error"])
+        self.assertEqual(parsed.language, fixture["fallback_language"])
 
 
 if __name__ == "__main__":

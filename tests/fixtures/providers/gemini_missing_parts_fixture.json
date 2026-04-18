@@ -1,0 +1,14 @@
+{
+  "provider": "gemini",
+  "case": "missing_parts",
+  "response": {
+    "candidates": [
+      {
+        "content": {
+          "role": "model"
+        }
+      }
+    ]
+  },
+  "expected_error": "Gemini candidate sem parts"
+}
