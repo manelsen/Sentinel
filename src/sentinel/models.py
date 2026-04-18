@@ -1,3 +1,5 @@
+"""Pydantic models and typed contracts shared across Sentinel layers."""
+
 from __future__ import annotations
 
 from enum import StrEnum
@@ -7,12 +9,16 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class MessageType(StrEnum):
+    """Supported ingested message categories."""
+
     TEXT = "text"
     AUDIO = "audio"
     OTHER = "other"
 
 
 class Severity(StrEnum):
+    """Incident severity levels used in assessments and alerts."""
+
     NORMAL = "normal"
     ATENCAO = "atencao"
     TENSAO = "tensao"
@@ -20,6 +26,8 @@ class Severity(StrEnum):
 
 
 class RecommendedAction(StrEnum):
+    """Recommended moderation action derived from a classification."""
+
     NONE = "none"
     MONITOR = "monitor"
     ALERT_MODERATOR = "alert_moderator"
@@ -27,6 +35,8 @@ class RecommendedAction(StrEnum):
 
 
 class FeedbackType(StrEnum):
+    """Feedback categories accepted from moderators."""
+
     CORRETO = "correto"
     EXAGERADO = "exagerado"
     INCORRETO = "incorreto"
@@ -35,6 +45,8 @@ class FeedbackType(StrEnum):
 
 
 class IncomingMessage(BaseModel):
+    """Canonical incoming event accepted by CLI and HTTP ingestion paths."""
+
     model_config = ConfigDict(extra="forbid", use_enum_values=False)
 
     platform: str
@@ -58,6 +70,14 @@ class IncomingMessage(BaseModel):
 
     @model_validator(mode="after")
     def validate_message_payload(self) -> IncomingMessage:
+        """Validate payload consistency according to message type.
+
+        Returns:
+            The validated model instance.
+
+        Raises:
+            ValueError: If required fields are missing for the declared type.
+        """
         if self.message_type == MessageType.TEXT and not self.raw_text:
             raise ValueError("raw_text e obrigatorio para message_type=text")
         if self.message_type == MessageType.AUDIO and not (self.media_path or self.transcript_text):
@@ -66,6 +86,8 @@ class IncomingMessage(BaseModel):
 
 
 class FeedbackRequest(BaseModel):
+    """Request body for moderator feedback registration endpoint."""
+
     model_config = ConfigDict(extra="forbid")
 
     incident_id: str
@@ -75,6 +97,8 @@ class FeedbackRequest(BaseModel):
 
 
 class DailyReportRequest(BaseModel):
+    """Request body for daily report generation endpoint."""
+
     model_config = ConfigDict(extra="forbid")
 
     group_id: str
@@ -82,6 +106,8 @@ class DailyReportRequest(BaseModel):
 
 
 class TranscriptionResult(BaseModel):
+    """Structured output of audio transcription providers."""
+
     model_config = ConfigDict(extra="forbid")
 
     transcript_text: str | None
@@ -93,6 +119,8 @@ class TranscriptionResult(BaseModel):
 
 
 class PromptBundle(BaseModel):
+    """Prompt package persisted for auditability of classification requests."""
+
     model_config = ConfigDict(extra="forbid")
 
     system_prompt: str
@@ -101,6 +129,8 @@ class PromptBundle(BaseModel):
 
 
 class EvidenceItem(BaseModel):
+    """Evidence reference pointing to messages supporting a classification."""
+
     model_config = ConfigDict(extra="forbid")
 
     message_id: str
@@ -108,6 +138,8 @@ class EvidenceItem(BaseModel):
 
 
 class ClassificationResult(BaseModel):
+    """Normalized classifier output used for incident assessment persistence."""
+
     model_config = ConfigDict(extra="forbid", use_enum_values=False)
 
     conflict_present: bool
@@ -124,6 +156,8 @@ class ClassificationResult(BaseModel):
 
 
 class WindowSnapshotMetadata(TypedDict):
+    """Typed metadata block attached to a classification window snapshot."""
+
     window_id: str
     group_id: str
     start_at: str
@@ -135,6 +169,8 @@ class WindowSnapshotMetadata(TypedDict):
 
 
 class WindowSnapshotMessage(TypedDict):
+    """Typed message representation included in a window snapshot."""
+
     message_id: str
     timestamp: str
     author_name: str
@@ -146,11 +182,15 @@ class WindowSnapshotMessage(TypedDict):
 
 
 class WindowSnapshot(TypedDict):
+    """Typed snapshot payload sent to the structured classifier."""
+
     metadata: WindowSnapshotMetadata
     messages: list[WindowSnapshotMessage]
 
 
 class IngestResult(TypedDict):
+    """Return contract for ingestion operations."""
+
     message_id: str
     group_id: str
     user_id: str
@@ -161,6 +201,8 @@ class IngestResult(TypedDict):
 
 
 class CriticalIncident(TypedDict):
+    """Incident representation used in daily report payloads."""
+
     incident_id: str
     severity: str
     participants: list[str]
@@ -171,6 +213,8 @@ class CriticalIncident(TypedDict):
 
 
 class DailyReportPayload(TypedDict):
+    """Structured daily report payload persisted and returned by API/CLI."""
+
     group_id: str
     report_date: str
     message_total: int
@@ -184,12 +228,16 @@ class DailyReportPayload(TypedDict):
 
 
 class AlertEvidence(TypedDict):
+    """Evidence excerpt included in alert payloads."""
+
     message_id: str
     author: str | None
     excerpt: str
 
 
 class AlertPayload(TypedDict):
+    """Canonical alert payload shape for persistence and emission."""
+
     alert_id: str
     incident_assessment_id: str
     group_id: str

@@ -1,3 +1,5 @@
+"""Prompt templates and builder for structured conflict-risk classification."""
+
 from __future__ import annotations
 
 import json
@@ -23,6 +25,14 @@ Criterios:
 
 
 def build_prompt(window_snapshot: WindowSnapshot) -> PromptBundle:
+    """Build the classifier prompt bundle for a single window snapshot.
+
+    Args:
+        window_snapshot: Metadata and chronological messages of a window.
+
+    Returns:
+        Prompt bundle containing system prompt, user prompt and audit payload.
+    """
     metadata = window_snapshot["metadata"]
     messages = window_snapshot["messages"]
     messages_block = "\n".join(

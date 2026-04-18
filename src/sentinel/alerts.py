@@ -1,3 +1,5 @@
+"""Utilities for building and rendering moderation alerts."""
+
 from __future__ import annotations
 
 import json
@@ -18,6 +20,22 @@ def build_alert_payload(
     trigger_excerpt: str | None,
     created_at: str | None = None,
 ) -> AlertPayload:
+    """Build the canonical alert payload persisted and emitted by Sentinel.
+
+    Args:
+        alert_id: Unique identifier for the alert record.
+        incident_id: Identifier of the correlated incident assessment.
+        group_id: Internal group identifier.
+        group_name: Human-readable group name.
+        result: Classification output used as alert source.
+        risk_score: Final risk score associated with the incident.
+        trigger_message_author: Author name for the trigger message, when known.
+        trigger_excerpt: Text excerpt from the trigger message, when available.
+        created_at: Optional explicit timestamp in ISO-8601 format.
+
+    Returns:
+        A normalized JSON-serializable alert payload.
+    """
     signals = []
     if result.severity in {Severity.TENSAO, Severity.INCENDIO}:
         signals.append("escalada_relacional")
@@ -53,6 +71,14 @@ def build_alert_payload(
 
 
 def render_human_alert(payload: AlertPayload) -> str:
+    """Render a concise human-readable alert block for terminal output.
+
+    Args:
+        payload: Structured alert payload.
+
+    Returns:
+        Multi-line string optimized for quick moderation triage.
+    """
     title = str(payload["severity"]).upper().replace("ATENCAO", "ATENCAO")
     participants = ", ".join(payload["participants"]) if payload["participants"] else "desconhecido"
     signals = ", ".join(payload["signals"]) if payload["signals"] else "nenhum sinal listado"
@@ -69,4 +95,12 @@ def render_human_alert(payload: AlertPayload) -> str:
 
 
 def render_machine_alert(payload: AlertPayload) -> str:
+    """Serialize an alert payload as ASCII-safe JSON.
+
+    Args:
+        payload: Structured alert payload.
+
+    Returns:
+        JSON text representation of the payload.
+    """
     return json.dumps(payload, ensure_ascii=True)

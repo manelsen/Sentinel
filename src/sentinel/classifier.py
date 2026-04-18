@@ -1,3 +1,5 @@
+"""Structured classification orchestration and heuristic fallback logic."""
+
 from __future__ import annotations
 
 import json
@@ -19,10 +21,24 @@ from .providers import CLASSIFICATION_RESPONSE_SCHEMA, build_gemini_client
 
 
 class ClassificationError(ValueError):
+    """Raised when a provider classification payload is invalid for a window."""
+
     pass
 
 
 def validate_classification(payload: dict[str, object], window_message_ids: set[str]) -> ClassificationResult:
+    """Validate and normalize a provider payload into ``ClassificationResult``.
+
+    Args:
+        payload: Parsed JSON payload returned by a classifier provider.
+        window_message_ids: Set of message IDs that belong to the analyzed window.
+
+    Returns:
+        Validated classification model.
+
+    Raises:
+        ClassificationError: If schema validation fails or IDs are inconsistent.
+    """
     try:
         result = ClassificationResult.model_validate(payload)
     except Exception as exc:
@@ -33,7 +49,14 @@ def validate_classification(payload: dict[str, object], window_message_ids: set[
 
 
 class StructuredClassifier:
+    """Classify window snapshots using Gemini, command mode, or fallback heuristics."""
+
     def __init__(self, config: AppConfig):
+        """Initialize classifier strategy from runtime configuration.
+
+        Args:
+            config: Application configuration with provider settings.
+        """
         self.config = config
         self.gemini_client = build_gemini_client(config)
 
@@ -41,6 +64,15 @@ class StructuredClassifier:
         self,
         window_snapshot: WindowSnapshot,
     ) -> tuple[ClassificationResult, dict[str, object]]:
+        """Classify one analysis window and return result plus persistence metadata.
+
+        Args:
+            window_snapshot: Window payload containing metadata and ordered messages.
+
+        Returns:
+            Tuple where the first element is the normalized classification and the
+            second element contains provider metadata stored in SQLite.
+        """
         prompt = build_prompt(window_snapshot)
         window_message_ids = {item["message_id"] for item in window_snapshot["messages"]}
 
@@ -69,6 +101,15 @@ class StructuredClassifier:
         prompt: PromptBundle,
         window_message_ids: set[str],
     ) -> tuple[ClassificationResult, dict[str, object]]:
+        """Run structured classification through Gemini with JSON schema output.
+
+        Args:
+            prompt: Prompt bundle generated from the window snapshot.
+            window_message_ids: IDs expected to appear in classification references.
+
+        Returns:
+            Validated classification and metadata to persist provider exchange.
+        """
         assert self.gemini_client is not None
         parsed, raw_output = self.gemini_client.classify_json(prompt, CLASSIFICATION_RESPONSE_SCHEMA)
         result = validate_classification(parsed, window_message_ids)
@@ -89,6 +130,20 @@ class StructuredClassifier:
         prompt: PromptBundle,
         window_message_ids: set[str],
     ) -> tuple[ClassificationResult, dict[str, object]]:
+        """Run classification via user-provided command protocol over stdin/stdout.
+
+        Args:
+            prompt: Prompt bundle generated from the window snapshot.
+            window_message_ids: IDs expected to appear in classification references.
+
+        Returns:
+            Validated classification and metadata to persist provider exchange.
+
+        Raises:
+            subprocess.CalledProcessError: If the configured command exits non-zero.
+            json.JSONDecodeError: If stdout is not valid JSON.
+            ClassificationError: If payload validation fails.
+        """
         command = shlex.split(self.config.llm.command)
         payload = json.dumps(
             {
@@ -125,6 +180,15 @@ class StructuredClassifier:
         window_snapshot: WindowSnapshot,
         prompt: PromptBundle,
     ) -> tuple[ClassificationResult, dict[str, object]]:
+        """Derive a conservative classification using local heuristic signals only.
+
+        Args:
+            window_snapshot: Window payload containing metadata and ordered messages.
+            prompt: Prompt bundle persisted for traceability even in fallback mode.
+
+        Returns:
+            Heuristic classification and synthetic provider metadata.
+        """
         messages = window_snapshot["messages"]
         metadata = window_snapshot["metadata"]
         participants = []

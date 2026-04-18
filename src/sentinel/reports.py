@@ -1,3 +1,5 @@
+"""Daily report aggregation logic for moderation operations."""
+
 from __future__ import annotations
 
 import json
@@ -35,6 +37,14 @@ STOPWORDS = {
 
 
 def _extract_topics(texts: list[str]) -> list[str]:
+    """Extract top discussion topics from a list of texts.
+
+    Args:
+        texts: Message texts for the report period.
+
+    Returns:
+        Up to five frequent non-stopword tokens.
+    """
     counter = Counter()
     for text in texts:
         for token in re.findall(r"[A-Za-zÀ-ÿ]{4,}", text.casefold()):
@@ -47,6 +57,16 @@ def _extract_topics(texts: list[str]) -> list[str]:
 def generate_daily_report(
     connection: sqlite3.Connection, group_id: str, report_date: str
 ) -> tuple[str, DailyReportPayload]:
+    """Build markdown and structured payload for one group/day report.
+
+    Args:
+        connection: Open SQLite connection.
+        group_id: Internal group identifier.
+        report_date: Date in ``YYYY-MM-DD`` format.
+
+    Returns:
+        Tuple with markdown report and structured JSON payload.
+    """
     day_start = f"{report_date}T00:00:00Z"
     day_end = f"{report_date}T23:59:59Z"
 

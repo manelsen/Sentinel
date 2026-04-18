@@ -1,3 +1,5 @@
+"""Provider clients and adapters for transcription and structured classification."""
+
 from __future__ import annotations
 
 import json
@@ -15,6 +17,8 @@ from .models import ClassificationResult, PromptBundle, TranscriptionResult
 
 
 class ProviderError(RuntimeError):
+    """Raised when an external provider returns invalid or unusable data."""
+
     pass
 
 
@@ -25,6 +29,20 @@ def _http_json(
     headers: Mapping[str, str],
     timeout: int,
 ) -> dict[str, object]:
+    """Send an HTTP JSON POST request and decode a JSON object response.
+
+    Args:
+        url: Target endpoint URL.
+        payload: Request payload.
+        headers: Additional HTTP headers.
+        timeout: Request timeout in seconds.
+
+    Returns:
+        Parsed JSON object.
+
+    Raises:
+        ProviderError: If network, HTTP or decoding errors occur.
+    """
     request = urllib.request.Request(
         url,
         data=json.dumps(payload, ensure_ascii=True).encode("utf-8"),
@@ -49,6 +67,18 @@ def _http_json(
 
 
 def _decode_json_object(response_body: str, *, url: str) -> dict[str, object]:
+    """Decode and validate that a response body is a JSON object.
+
+    Args:
+        response_body: Raw response body text.
+        url: Logical URL used in error context.
+
+    Returns:
+        Parsed JSON object.
+
+    Raises:
+        ProviderError: If JSON is invalid or not an object.
+    """
     try:
         parsed = json.loads(response_body)
     except json.JSONDecodeError as exc:
@@ -59,6 +89,14 @@ def _decode_json_object(response_body: str, *, url: str) -> dict[str, object]:
 
 
 def _normalize_groq_language(language: str | None) -> str | None:
+    """Normalize locale-like language tags into Groq-friendly short codes.
+
+    Args:
+        language: Optional language code (e.g. ``pt-BR`` or ``en_US``).
+
+    Returns:
+        Primary lowercase language subtag, or ``None`` when unavailable.
+    """
     if not language:
         return None
     normalized = language.strip().replace("_", "-")
@@ -75,6 +113,18 @@ def _multipart_body(
     file_bytes: bytes,
     file_content_type: str,
 ) -> tuple[bytes, str]:
+    """Build a multipart/form-data body with fields and one file.
+
+    Args:
+        fields: Form fields.
+        file_field: Name of the file field.
+        file_name: File name sent in multipart disposition.
+        file_bytes: Binary file content.
+        file_content_type: MIME type for the file payload.
+
+    Returns:
+        Tuple with encoded body and generated boundary.
+    """
     boundary = f"sentinel-{secrets.token_hex(12)}"
     chunks: list[bytes] = []
     for key, value in fields.items():
@@ -104,7 +154,18 @@ def _multipart_body(
 
 @dataclass(slots=True)
 class NoopTranscriber:
+    """Fallback transcriber used when real transcription provider is unavailable."""
+
     def transcribe(self, media_path: str, language: str | None) -> TranscriptionResult:
+        """Return a deterministic failure result for missing provider setup.
+
+        Args:
+            media_path: Ignored media path.
+            language: Optional input language hint.
+
+        Returns:
+            Failed transcription result with explanatory error message.
+        """
         return TranscriptionResult(
             transcript_text=None,
             language=language,
@@ -117,6 +178,8 @@ class NoopTranscriber:
 
 @dataclass(slots=True)
 class GroqTranscriber:
+    """Groq Speech-to-Text client adapter."""
+
     api_key: str
     base_url: str
     model: str
@@ -126,9 +189,19 @@ class GroqTranscriber:
 
     @property
     def transcription_url(self) -> str:
+        """Return transcription endpoint URL derived from configured base URL."""
         return f"{self.base_url.rstrip('/')}/audio/transcriptions"
 
     def transcribe(self, media_path: str, language: str | None) -> TranscriptionResult:
+        """Transcribe an audio file through Groq Speech-to-Text.
+
+        Args:
+            media_path: Local path to an audio file.
+            language: Optional language hint.
+
+        Returns:
+            Structured transcription result.
+        """
         path = Path(media_path)
         if not path.exists():
             return TranscriptionResult(
@@ -195,6 +268,8 @@ class GroqTranscriber:
 
 @dataclass(slots=True)
 class GeminiStructuredClient:
+    """Gemini client that requests JSON constrained by schema."""
+
     api_key: str
     base_url: str
     model: str
@@ -202,6 +277,7 @@ class GeminiStructuredClient:
 
     @property
     def generate_content_url(self) -> str:
+        """Return generateContent endpoint URL derived from configured base URL."""
         return f"{self.base_url.rstrip('/')}/models/{self.model}:generateContent"
 
     def classify_json(
@@ -209,6 +285,18 @@ class GeminiStructuredClient:
         prompt: PromptBundle,
         response_schema: dict[str, object],
     ) -> tuple[dict[str, object], str]:
+        """Generate structured classification JSON using Gemini.
+
+        Args:
+            prompt: Prompt bundle with system and user context.
+            response_schema: JSON schema expected from the model.
+
+        Returns:
+            Tuple containing parsed JSON object and raw text output.
+
+        Raises:
+            ProviderError: If response extraction or JSON parsing fails.
+        """
         payload = {
             "contents": [
                 {"role": "user", "parts": [{"text": f"{prompt.system_prompt.strip()}\n\n{prompt.user_prompt.strip()}"}]}
@@ -234,6 +322,17 @@ class GeminiStructuredClient:
 
 
 def _extract_gemini_text(payload: Mapping[str, object]) -> str:
+    """Extract textual candidate output from Gemini ``generateContent`` response.
+
+    Args:
+        payload: Parsed provider response.
+
+    Returns:
+        Concatenated candidate text.
+
+    Raises:
+        ProviderError: If response does not contain expected candidate fields.
+    """
     candidates = payload.get("candidates")
     if not isinstance(candidates, list) or not candidates:
         raise ProviderError("Gemini retornou sem candidates")
@@ -258,6 +357,15 @@ def _parse_groq_transcription_payload(
     *,
     fallback_language: str | None,
 ) -> TranscriptionResult:
+    """Convert Groq verbose JSON payload into ``TranscriptionResult``.
+
+    Args:
+        payload: Parsed transcription response payload.
+        fallback_language: Language used when provider omits explicit language.
+
+    Returns:
+        Normalized transcription result.
+    """
     segments = payload.get("segments") or []
     avg_logprob = None
     duration_seconds = None
@@ -290,6 +398,15 @@ def _parse_groq_transcription_payload(
 
 
 def _parse_groq_transcription_response(response_body: str, *, fallback_language: str | None) -> TranscriptionResult:
+    """Parse Groq transcription response supporting JSON and plaintext modes.
+
+    Args:
+        response_body: Raw provider response body.
+        fallback_language: Language used when provider omits explicit language.
+
+    Returns:
+        Normalized transcription result.
+    """
     stripped = response_body.strip()
     if not stripped:
         return TranscriptionResult(
@@ -318,6 +435,14 @@ CLASSIFICATION_RESPONSE_SCHEMA = ClassificationResult.model_json_schema()
 
 
 def build_transcriber(config: AppConfig) -> NoopTranscriber | GroqTranscriber:
+    """Build the transcription adapter according to runtime configuration.
+
+    Args:
+        config: Application configuration.
+
+    Returns:
+        Configured transcriber instance.
+    """
     if config.transcription.provider == "groq":
         api_key = os.getenv(config.transcription.api_key_env, "").strip()
         if not api_key:
@@ -334,6 +459,14 @@ def build_transcriber(config: AppConfig) -> NoopTranscriber | GroqTranscriber:
 
 
 def build_gemini_client(config: AppConfig) -> GeminiStructuredClient | None:
+    """Build Gemini structured client when provider and API key are available.
+
+    Args:
+        config: Application configuration.
+
+    Returns:
+        Configured Gemini client or ``None`` if unavailable.
+    """
     if config.llm.provider != "gemini":
         return None
     api_key = os.getenv(config.llm.api_key_env, "").strip()
@@ -348,4 +481,12 @@ def build_gemini_client(config: AppConfig) -> GeminiStructuredClient | None:
 
 
 def normalize_provider_classification(payload: dict[str, object]) -> ClassificationResult:
+    """Normalize provider payload into a validated ``ClassificationResult``.
+
+    Args:
+        payload: Provider response payload.
+
+    Returns:
+        Validated classification model.
+    """
     return ClassificationResult.model_validate(payload)

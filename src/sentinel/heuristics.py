@@ -1,3 +1,5 @@
+"""Feature extraction and heuristic risk scoring for conversational windows."""
+
 from __future__ import annotations
 
 import math
@@ -38,6 +40,8 @@ DIRECT_ATTACK_PATTERNS = [
 
 @dataclass(slots=True)
 class MessageFeatureSet:
+    """Computed per-message features used in downstream window analysis."""
+
     caps_ratio: float
     exclamation_count: int
     question_count: int
@@ -52,6 +56,8 @@ class MessageFeatureSet:
 
 @dataclass(slots=True)
 class WindowFeatureSet:
+    """Aggregated window-level features and final heuristic risk score."""
+
     messages_per_minute: float
     reply_concentration_score: float
     dyadic_exchange_score: float
@@ -65,12 +71,29 @@ class WindowFeatureSet:
 
 
 def _safe_ratio(numerator: float, denominator: float) -> float:
+    """Clamp a division result into ``[0, 1]`` while handling zero denominator.
+
+    Args:
+        numerator: Numerator of the ratio.
+        denominator: Denominator of the ratio.
+
+    Returns:
+        Bounded ratio between 0 and 1.
+    """
     if denominator <= 0:
         return 0.0
     return max(0.0, min(1.0, numerator / denominator))
 
 
 def _as_float(value: object) -> float:
+    """Coerce arbitrary scalar values into ``float``.
+
+    Args:
+        value: Input value from SQLite rows or computed metadata.
+
+    Returns:
+        Floating-point representation, using ``0.0`` for ``None``.
+    """
     if value is None:
         return 0.0
     if isinstance(value, bool):
@@ -81,6 +104,14 @@ def _as_float(value: object) -> float:
 
 
 def _as_int(value: object) -> int:
+    """Coerce arbitrary scalar values into ``int``.
+
+    Args:
+        value: Input value from SQLite rows or computed metadata.
+
+    Returns:
+        Integer representation, using ``0`` for ``None``.
+    """
     if value is None:
         return 0
     if isinstance(value, bool):
@@ -91,6 +122,14 @@ def _as_int(value: object) -> int:
 
 
 def _alpha_caps_ratio(text: str) -> float:
+    """Compute uppercase ratio considering alphabetic characters only.
+
+    Args:
+        text: Message text.
+
+    Returns:
+        Ratio of uppercase letters among all alphabetic characters.
+    """
     letters = [char for char in text if char.isalpha()]
     if not letters:
         return 0.0
@@ -105,6 +144,17 @@ def compute_message_features(
     contains_profanity: bool = False,
     contains_direct_address: bool = False,
 ) -> MessageFeatureSet:
+    """Compute lexical and interactional features for one message.
+
+    Args:
+        text: Normalized analysis text.
+        reply_to_message_id: Referenced parent message ID when this message is a reply.
+        contains_profanity: Whether profanity was detected during normalization.
+        contains_direct_address: Whether direct addressing was detected.
+
+    Returns:
+        Structured per-message feature set.
+    """
     lowered = text.casefold()
     exclamation_count = text.count("!")
     question_count = text.count("?")
@@ -144,6 +194,15 @@ def compute_window_features(
     message_rows: list[dict[str, object]],
     heuristic_config: HeuristicConfig,
 ) -> WindowFeatureSet:
+    """Aggregate message features into window-level escalation signals.
+
+    Args:
+        message_rows: Chronologically ordered message rows with feature columns.
+        heuristic_config: Threshold and weighting configuration.
+
+    Returns:
+        Window-level signals and the final heuristic risk score.
+    """
     if not message_rows:
         empty_details = {
             "direct_attack_density": 0.0,
@@ -251,6 +310,14 @@ def compute_window_features(
 
 
 def heuristic_severity(score: float) -> str:
+    """Map heuristic score into severity buckets.
+
+    Args:
+        score: Risk score between 0 and 1.
+
+    Returns:
+        Severity label in ``normal``, ``atencao``, ``tensao`` or ``incendio``.
+    """
     if score < 0.35:
         return "normal"
     if score < 0.55:
