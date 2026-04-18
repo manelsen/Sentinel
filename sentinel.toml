@@ -1,0 +1,40 @@
+[app]
+db_path = "sentinel.db"
+
+[server]
+host = "127.0.0.1"
+port = 8080
+auth_token = ""
+
+[windows]
+short_minutes = 5
+short_message_count = 20
+expanded_minutes = 15
+expanded_message_count = 50
+
+[heuristics]
+llm_threshold = 0.55
+heuristic_only_threshold = 0.85
+weights = { hostility_density_score = 0.18, dyadic_exchange_score = 0.16, escalation_velocity_score = 0.14, reply_concentration_score = 0.12, participant_concentration_score = 0.10, direct_attack_density = 0.10, profanity_density = 0.08, caps_intensity = 0.06, punctuation_aggression = 0.06 }
+
+[alerts]
+channels = ["stdout"]
+cooldown_seconds = 300
+minimum_severity = "tensao"
+
+[transcription]
+provider = "groq"
+model = "whisper-large-v3-turbo"
+api_key_env = "GROQ_API_KEY"
+base_url = "https://api.groq.com/openai/v1"
+timeout_seconds = 120
+response_format = "verbose_json"
+timestamp_granularities = ["segment"]
+
+[llm]
+provider = "gemini"
+model = "gemini-2.5-flash"
+api_key_env = "GEMINI_API_KEY"
+base_url = "https://generativelanguage.googleapis.com/v1beta"
+timeout_seconds = 30
+command = ""

@@ -1,0 +1,13 @@
+{
+  "platform": "demo",
+  "external_group_id": "grupo-1",
+  "group_name": "Grupo Demo",
+  "external_user_id": "alice",
+  "user_name": "Alice",
+  "message_type": "text",
+  "raw_text": "VOCE esta distorcendo tudo de novo!!!",
+  "sent_at": "2026-04-18T16:00:10Z",
+  "received_at": "2026-04-18T16:00:11Z",
+  "reply_to_message_id": null
+}
+

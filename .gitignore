@@ -1,0 +1,15 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+*.db
+*.sqlite
+.venv/
+.media/
+.baileys-auth/
+sidecar/baileys/node_modules/
+sidecar/baileys/.media/
+sidecar/baileys/.baileys-auth/
+sidecar/whatsmeow/.store/
+sidecar/whatsmeow/.media/
+sidecar/whatsmeow/whatsmeow

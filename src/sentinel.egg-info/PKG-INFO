@@ -1,0 +1,135 @@
+Metadata-Version: 2.4
+Name: sentinel
+Version: 0.1.0
+Summary: Sentinel de moderacao conversacional com SQLite, heuristicas e classificacao contextual.
+Author: Void
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: pydantic<3,>=2
+Provides-Extra: dev
+Requires-Dist: pyright; extra == "dev"
+Requires-Dist: ruff; extra == "dev"
+
+# Sentinel
+
+Base executavel da V1 do Sentinel descrito no PRD: ingestao de mensagens, transcricao via Groq, classificacao via Gemini, persistencia em SQLite, heuristicas locais, alertas auditaveis e relatorio diario.
+
+## Escopo desta base
+
+- SQLite com schema auditavel e FTS5.
+- Pipeline local para mensagens de texto e audio.
+- API HTTP simples para sidecars externos.
+- Sidecar Node com Baileys para ingestao real de mensagens de grupo.
+- Transcricao nativa via Groq Speech-to-Text.
+- Classificacao estruturada via Gemini JSON Schema.
+- Normalizacao de texto preservando sinais de agressividade.
+- Features por mensagem e por janela.
+- Janelas hibridas curtas e expandidas.
+- Fallback heuristico quando provider falha ou nao esta configurado.
+- Emissao de alerta em `stdout`.
+- Relatorio diario consolidado.
+- Registro de feedback do moderador.
+
+## Limites atuais
+
+- O sidecar Baileys faz apenas ingestao. Envio de mensagens de moderacao para WhatsApp ainda nao foi implementado.
+- Nao ha dashboard web; a saida continua estruturada em SQLite, JSON e `stdout`.
+- O fallback heuristico continua sendo usado quando Groq/Gemini nao estiverem configurados ou responderem com erro.
+
+## Uso rapido
+
+Inicializar o banco:
+
+```bash
+python3 -m sentinel.cli init-db --db sentinel.db
+```
+
+Subir a API HTTP para o sidecar:
+
+```bash
+PYTHONPATH=src python3 -m sentinel.cli --config sentinel.toml serve
+```
+
+Ingerir um evento JSON localmente:
+
+```bash
+PYTHONPATH=src python3 -m sentinel.cli ingest --db sentinel.db --event-file examples/hostile-message.json
+```
+
+Gerar relatorio diario:
+
+```bash
+PYTHONPATH=src python3 -m sentinel.cli report-daily --db sentinel.db --group-id grp_demo --date 2026-04-18
+```
+
+Registrar feedback:
+
+```bash
+PYTHONPATH=src python3 -m sentinel.cli feedback --db sentinel.db --incident-id inc_123 --feedback-type correto --note "Alerta util"
+```
+
+## Evento JSON esperado
+
+```json
+{
+  "platform": "demo",
+  "external_group_id": "grupo-1",
+  "group_name": "Grupo 1",
+  "external_user_id": "alice",
+  "user_name": "Alice",
+  "message_type": "text",
+  "raw_text": "Voce esta distorcendo tudo de novo.",
+  "sent_at": "2026-04-18T16:00:10Z",
+  "received_at": "2026-04-18T16:00:11Z",
+  "reply_to_message_id": null
+}
+```
+
+Para audios, informe `message_type = "audio"` e `media_path` apontando para um arquivo local. Se `transcript_text` vier preenchido, o Sentinel usa esse texto e nao chama Groq.
+
+## Configuracao
+
+Copie `sentinel.toml` e ajuste pesos, thresholds, host/porta da API e providers.
+
+Variaveis de ambiente esperadas:
+
+```bash
+export GROQ_API_KEY=...
+export GEMINI_API_KEY=...
+```
+
+## Sidecar Baileys
+
+Instalacao:
+
+```bash
+cd sidecar/baileys
+npm install
+```
+
+Execucao:
+
+```bash
+export SENTINEL_INGEST_URL=http://127.0.0.1:8080/ingest
+export SENTINEL_AUTH_TOKEN=
+export SENTINEL_BAILEYS_AUTH_DIR=./.baileys-auth
+export SENTINEL_MEDIA_DIR=./.media
+npm start
+```
+
+O sidecar:
+
+- conecta ao WhatsApp Web via `@whiskeysockets/baileys`;
+- consome `messages.upsert`;
+- baixa audio localmente quando houver `audioMessage`;
+- serializa o evento no formato do Sentinel;
+- envia para `POST /ingest`.
+
+## Endpoints HTTP
+
+- `GET /healthz`
+- `POST /ingest`
+- `POST /feedback`
+- `POST /report-daily`
+
+Se `server.auth_token` estiver configurado, envie `Authorization: Bearer <token>`.
