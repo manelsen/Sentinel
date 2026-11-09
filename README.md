@@ -33,4 +33,4 @@ Preencha no `.env`:
 ## Documentacao detalhada
 
 - Contrato de ingestao e endpoints HTTP: `docs/integracao-http.md`
-- Configuracao da aplicacao: `sentinel.toml`
+- Configuracao por ambiente: `.env.example`

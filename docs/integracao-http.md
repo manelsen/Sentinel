@@ -11,7 +11,7 @@ Resumo do caminho:
 1. `sidecar/whatsmeow/main.go` recebe evento do WhatsApp.
 2. `buildPayload` monta o objeto `ingestPayload`.
 3. `postIngest` envia o JSON para o Sentinel.
-4. O Sentinel valida esse JSON em `IncomingMessage` (`src/sentinel/models.py`).
+4. O Sentinel valida esse JSON em `IncomingMessage` (`cmd/sentinel/main.go`).
 
 ## Payload de ingestao (`POST /ingest`)
 

@@ -11,8 +11,6 @@ services:
     command:
       [
         "serve",
-        "--config",
-        "/app/sentinel.toml",
         "--db",
         "/data/sentinel.db",
         "--host",
@@ -23,7 +21,6 @@ services:
     ports:
       - "${SENTINEL_PORT:-8080}:8080"
     volumes:
-      - ./sentinel.toml:/app/sentinel.toml:ro
       - sentinel_data:/data
     restart: unless-stopped
 

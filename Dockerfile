@@ -1,16 +1,21 @@
-FROM python:3.12-slim
+FROM golang:1.22 AS build
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY cmd ./cmd
+COPY sidecar ./sidecar
+
+RUN CGO_ENABLED=1 go build -o /out/sentinel ./cmd/sentinel
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-
-COPY pyproject.toml README.md sentinel.toml /app/
-COPY src /app/src
-
-RUN pip install --no-cache-dir .
+COPY --from=build /out/sentinel /usr/local/bin/sentinel
 
 EXPOSE 8080
 
 ENTRYPOINT ["sentinel"]
-CMD ["serve", "--config", "/app/sentinel.toml", "--db", "/data/sentinel.db", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["serve", "--db", "/data/sentinel.db", "--host", "0.0.0.0", "--port", "8080"]
